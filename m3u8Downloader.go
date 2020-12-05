@@ -3,14 +3,13 @@ package main
 import (
 	"fmt"
 	"io"
+	"io/ioutil"
 	"log"
 	"net/http"
 	"os"
 	"os/exec"
 	"runtime"
 	"strings"
-
-	"github.com/PuerkitoBio/goquery"
 )
 
 func DownloadFile(filepath string, url string) error {
@@ -48,8 +47,13 @@ func getM3u8TsList(m3u8URL string) []string {
 		fmt.Println("error(getM3u8TsList)", err)
 		return nil
 	}
-	// Create a goquery document from the HTTP response
-	document, err := goquery.NewDocumentFromReader(response.Body)
+
+	bodyBytes, err := ioutil.ReadAll(response.Body)
+	if err != nil {
+		log.Fatal(err)
+		return nil
+	}
+	bodyContents := string(bodyBytes)
 	response.Body.Close()
 
 	if err != nil {
@@ -59,7 +63,7 @@ func getM3u8TsList(m3u8URL string) []string {
 		return nil
 	}
 
-	lines := strings.Split(document.Text(), "\n")
+	lines := strings.Split(bodyContents, "\n")
 	tsList := make([]string, 0)
 	for i := 0; i < len(lines); i++ {
 		if strings.Contains(lines[i], ".ts") {
@@ -270,14 +274,14 @@ func main() {
 		fmt.Printf("Downloading Progress:%.2f%%", percents)
 
 	}
-	fmt.Println("Done download ts files!\nMereging ts files...")
+	fmt.Println("\nDone download ts files!\nMereging ts files...")
 	mergeTsFiles(len(tsList), tempFolderName)
 
 	fmt.Println("Saving as mp4 format...")
 	saveFileAsMp4Format(tempFolderName, dstFolder, fileName)
 	fmt.Printf("File saved at %s as %s.mp4\n", dstFolder, fileName)
 
-	fmt.Println("Deleting temp files...")
+	fmt.Printf("Deleting temp files...(%s)\n", tempFolderName)
 	//deletes the tempFolderName folder and it's content.
 	err = os.RemoveAll(tempFolderName)
 	if err != nil {
